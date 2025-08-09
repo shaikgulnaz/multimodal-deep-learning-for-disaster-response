@@ -1,83 +1,189 @@
-# multimodal-deep-learning-for-disaster-response
+# Multimodal Deep Learning for Disaster Response (Modernized)
 
-Warning: the code in this repo is now very outdated and is no longer being maintened, I would recommend using the dataset but trying to re-implement things using newer versions of tensorflow. Everything here relies on the slim library, but that implementation has changed and is no longer fully compatible with the code here.
+A modern implementation of multimodal deep learning for disaster response classification using PyTorch and Transformers. This project combines image and text data to classify disaster-related social media posts into different damage categories.
 
-Code and Dataset for Damage Identification in Social Media Posts using Multimodal Deep Learning
+## 🚀 Features
 
-Available here:
+- **Modern Architecture**: Built with PyTorch and Hugging Face Transformers
+- **Multiple Fusion Methods**: Concatenation, attention-based, and bilinear fusion
+- **Flexible Backbones**: Support for ResNet, EfficientNet, Vision Transformer for images; BERT, RoBERTa, DistilBERT for text
+- **Comprehensive Evaluation**: Detailed metrics, visualizations, and model comparison
+- **Easy to Use**: Simple command-line interface for training, evaluation, and prediction
+- **Production Ready**: Proper logging, checkpointing, and model deployment utilities
 
-http://idl.iscram.org/files/husseinmouzannar/2018/2129_HusseinMouzannar_etal2018.pdf
+## 📊 Dataset
 
-with dataset:
+The model works with the multimodal dataset from the original paper:
+- **Classes**: 6 disaster categories (damaged_infrastructure, damaged_nature, fires, flood, human_damage, non_damage)
+- **Modalities**: Images and corresponding text descriptions
+- **Source**: Social media posts (Twitter, Instagram)
 
-https://archive.ics.uci.edu/ml/datasets/Multimodal+Damage+Identification+for+Humanitarian+Computing
+Dataset available at: [UCI ML Repository](https://archive.ics.uci.edu/ml/datasets/Multimodal+Damage+Identification+for+Humanitarian+Computing)
 
-If you find our dataset or code useful to your research, please consider citing our paper.
+## 🛠️ Installation
 
-# Requirements
-Python 3.6, Tensorflow 1.40 (and all its dependencies)
+### Prerequisites
+- Python 3.8+
+- CUDA-capable GPU (recommended)
 
-# Dataset
+### Install from source
+```bash
+git clone https://github.com/your-repo/multimodal-disaster-response.git
+cd multimodal-disaster-response
+pip install -e .
+```
 
-The multimodal dataset (image and text for each post) is collected from social media sites (Twitter and Instagram) and labeled by a group of 5 volunteers. The dataset was used in the aforementioned paper and is available for download only for academic purposes using the following link: 
+### Install dependencies only
+```bash
+pip install -r requirements.txt
+```
 
-https://archive.ics.uci.edu/ml/datasets/Multimodal+Damage+Identification+for+Humanitarian+Computing
+## 📁 Data Preparation
 
-https://drive.google.com/open?id=1lLhTpfYBFaYwlAVaH7J-myHuN8mdV595
+Organize your dataset in the following structure:
+```
+data/
+├── train/
+│   ├── damaged_infrastructure/
+│   │   ├── images/
+│   │   └── text/
+│   ├── damaged_nature/
+│   │   ├── images/
+│   │   └── text/
+│   └── ...
+├── val/
+└── test/
+```
 
+Each text file should have the same name as its corresponding image file (e.g., `image1.jpg` ↔ `image1.txt`).
 
-# Image model Training
-(these steps are better described at https://github.com/tensorflow/models/tree/master/research/slim)
+## 🚀 Quick Start
 
-The first step is to prepare the image data for tensorflow slim:
+### Training
+```bash
+# Train with default configuration
+python train.py --config config/config.yaml --data-dir data/
 
-1- Organize image data in one parent directory in the following format: label1\image1.jpg ... imageN.jpg, label2\...
+# Train with custom settings
+python train.py --config config/config.yaml --data-dir data/ --device cuda
+```
 
-2- Build a slim dataset using the data: first make sure to include disaster and the updated dataset factory in your slim\datasets directory, then using build_image_data located in slim\models\research\inception\inception\data run:
+### Evaluation
+```bash
+python evaluate.py --config config/config.yaml --checkpoint path/to/best_model.pth --data-dir data/
+```
 
-python build_image_data.py --train_directory={TRAIN_DATASET} --validation_directory={VAL_DATASET} --labels_file={labels text file: each line: label1 \newline label2 ...}  --output_directory={TF_DATASET}
+### Single Prediction
+```bash
+python predict.py --config config/config.yaml --checkpoint path/to/best_model.pth --image path/to/image.jpg --text "Flood damage in the city center"
+```
 
-Now we can train our image-model:
+## ⚙️ Configuration
 
-python train_image_classifier.py   --train_dir={DIRECTORY TO PLACE MODEL FILES}  --dataset_dir={TF_DATASET} --dataset_name=disaster  --dataset_split_name=train --model_name=inception_v3  --checkpoint_path={IMAGENET CHECKPOINT FILE} 
---checkpoint_exclude_scopes=InceptionV3/Logits,InceptionV3/AuxLogits --trainable_scopes=InceptionV3/Logits,InceptionV3/AuxLogits
+The model configuration is defined in `config/config.yaml`. Key parameters:
 
-After training you now need to produce a graph file to be able to use your model for prediction:
+```yaml
+model:
+  image_model: "resnet50"  # resnet50, efficientnet-b0, vit-base-patch16-224
+  text_model: "bert-base-uncased"  # bert-base-uncased, distilbert-base-uncased, roberta-base
+  fusion_method: "concatenation"  # concatenation, attention, bilinear
+  num_classes: 6
+  dropout: 0.3
 
-python export_inference_graph.py  --alsologtostderr --model_name=inception_v3 --output_file=/tmp/inception_v3_inf_graph.pb
+training:
+  epochs: 50
+  learning_rate: 0.001
+  batch_size: 32
+  early_stopping_patience: 10
+```
 
-python freeze_graph.py --input_graph=/tmp/inception_v3_inf_graph.pb  --input_checkpoint={DIRECTORY FOR MODEEL FILES\model.ckpt-{steps}}
---input_binary=true --output_graph=/tmp/frozen_inception_v3.pb  --output_node_names=InceptionV3/Predictions/Reshape_1
-Now you can use frozen_inception_v3.pb.
+## 📈 Model Architecture
 
-# Text model training
+The multimodal model consists of:
 
-We adapt the code from https://github.com/dennybritz/cnn-text-classification-tf to our dataset and add the ability to display a confusion matrix and predict single captions.
+1. **Image Encoder**: Pre-trained CNN or Vision Transformer
+2. **Text Encoder**: Pre-trained Transformer model
+3. **Fusion Module**: Combines image and text features
+4. **Classifier**: Final classification head
 
-Make sure to download either the word2vec embeddings found here: https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit or the glove embeddings: https://nlp.stanford.edu/projects/glove/.
+### Fusion Methods
 
-train.py produces for each model a folder containing graph data that can be automatically used later for prediction.
+- **Concatenation**: Simple feature concatenation
+- **Attention**: Multi-head attention mechanism
+- **Bilinear**: Bilinear pooling for feature interaction
 
-# Decision Fusion
+## 📊 Results
 
-The first step is to obtain predictions using our trained image and text models on the train/test/val sets:
+The model provides comprehensive evaluation metrics:
 
-1- get image representations and save them: use loadDataImage.py
+- **Accuracy**: Overall and per-class accuracy
+- **Precision/Recall/F1**: Detailed performance metrics
+- **Confusion Matrix**: Visual performance analysis
+- **Modality Comparison**: Individual vs. multimodal performance
 
-2- get text representation and save them: use loadDataText.py: make sure to load the correct text model
+## 🔧 Advanced Usage
 
-You will have .pkl file for each predictions for easy reuse later on.
+### Custom Model Components
 
-After you have have obtained your new "dataset", annDecision implements a simple neural network and computes accuracies, svm_knn implements a linear and guassian svm and knn models for decision fusion to get accuracies. Finally decisionRules implements a max decision rule and computes accuracies
+```python
+from src.models.multimodal_model import MultimodalModel
+from src.data.dataset import create_data_loaders
 
-# Feature Fusion
+# Load configuration
+config = load_config('config/config.yaml')
 
-Same as for Decision fusion, obtain your new dataset of features using the same scripts (but different modules). annFeatures implements a deep neural network and svm_knn as before.
+# Create model
+model = MultimodalModel(config)
 
-# Visual
+# Create data loaders
+train_loader, val_loader, test_loader = create_data_loaders(config)
+```
 
-We have an implementation of PCA and LDA to visualize our features in 2D, just load your data and run.
+### Custom Training Loop
 
-# Citation:
+```python
+from src.training.trainer import Trainer
 
-Hussein Mouzannar, Yara Rizk, & Mariette Awad. (2018). Damage Identification in Social Media Posts using Multimodal Deep Learning. In Kees Boersma, & Brian Tomaszeski (Eds.), ISCRAM 2018 Conference Proceedings – 15th International Conference on Information Systems for Crisis Response and Management (pp. 529–543). Rochester, NY (USA): Rochester Institute of Technology.
+trainer = Trainer(model, train_loader, val_loader, config, device='cuda')
+best_accuracy = trainer.train()
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📚 Citation
+
+If you use this code or dataset in your research, please cite the original paper:
+
+```bibtex
+@inproceedings{mouzannar2018damage,
+  title={Damage Identification in Social Media Posts using Multimodal Deep Learning},
+  author={Mouzannar, Hussein and Rizk, Yara and Awad, Mariette},
+  booktitle={ISCRAM 2018 Conference Proceedings},
+  pages={529--543},
+  year={2018},
+  organization={Rochester Institute of Technology}
+}
+```
+
+## 🙏 Acknowledgments
+
+- Original dataset and research by Hussein Mouzannar, Yara Rizk, and Mariette Awad
+- Hugging Face for providing pre-trained models
+- PyTorch team for the deep learning framework
+
+## 📞 Support
+
+If you have any questions or issues, please:
+1. Check the [Issues](https://github.com/your-repo/multimodal-disaster-response/issues) page
+2. Create a new issue with detailed information
+3. Join our community discussions
+
+---
+
+**Note**: This is a modernized implementation of the original multimodal disaster response model. The original TensorFlow 1.x code has been completely rewritten using modern PyTorch and Transformers libraries for better performance, maintainability, and ease of use.
